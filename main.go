@@ -1,22 +1,46 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
-const threshold = 60.0
+type Applicant struct {
+	firstName string
+	lastName  string
+	gpa       float64
+}
 
 func main() {
-	var score1, score2, score3 float64
+	var totalNumberOfApplicants int
+	fmt.Scan(&totalNumberOfApplicants)
 
-	fmt.Scan(&score1)
-	fmt.Scan(&score2)
-	fmt.Scan(&score3)
+	var numberOfApplicantsToBeAccepted int
+	fmt.Scan(&numberOfApplicantsToBeAccepted)
 
-	average := (score1 + score2 + score3) / 3
-	fmt.Println(average)
+	var applicants []Applicant
+	for i := 0; i < totalNumberOfApplicants; i++ {
+		var applicant Applicant
 
-	if average >= threshold {
-		fmt.Println("Congratulations, you are accepted!")
-	} else {
-		fmt.Println("We regret to inform you that we will not be able to offer you admission.")
+		fmt.Scan(&applicant.firstName, &applicant.lastName, &applicant.gpa)
+
+		applicants = append(applicants, applicant)
+	}
+
+	sort.Slice(applicants, func(i, j int) bool {
+		if applicants[i].gpa == applicants[j].gpa {
+			if applicants[i].firstName == applicants[j].firstName {
+				return applicants[i].lastName < applicants[j].lastName
+			}
+
+			return applicants[i].firstName < applicants[j].firstName
+		}
+
+		return applicants[i].gpa > applicants[j].gpa
+	})
+
+	fmt.Println("Successful applicants:")
+	for i := 0; i < numberOfApplicantsToBeAccepted; i++ {
+		fmt.Println(applicants[i].firstName, applicants[i].lastName)
 	}
 }
