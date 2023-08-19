@@ -17,9 +17,20 @@ type Applicant struct {
 	thirdOption  string
 }
 
+func sortApplicants(applicants []Applicant) {
+	sort.Slice(applicants, func(i, j int) bool {
+		if applicants[i].gpa != applicants[j].gpa {
+			return applicants[i].gpa > applicants[j].gpa
+		}
+		if applicants[i].firstName != applicants[j].firstName {
+			return applicants[i].firstName < applicants[j].firstName
+		}
+		return applicants[i].lastName < applicants[j].lastName
+	})
+}
+
 func main() {
 	var maxNumberOfStudentsPerDepartment int
-	// fmt.Print("> ")
 	fmt.Scan(&maxNumberOfStudentsPerDepartment)
 
 	applicantsFile, err := os.Open("applicants.txt")
@@ -50,15 +61,7 @@ func main() {
 		func(applicant Applicant) string { return applicant.secondOption },
 		func(applicant Applicant) string { return applicant.thirdOption },
 	} {
-		sort.Slice(applicants, func(i, j int) bool {
-			if applicants[i].gpa != applicants[j].gpa {
-				return applicants[i].gpa > applicants[j].gpa
-			}
-			if applicants[i].firstName != applicants[j].firstName {
-				return applicants[i].firstName < applicants[j].firstName
-			}
-			return applicants[i].lastName < applicants[j].lastName
-		})
+		sortApplicants(applicants)
 
 		var remainingApplicants []Applicant
 
@@ -77,18 +80,8 @@ func main() {
 	for _, department := range []string{"Biotech", "Chemistry", "Engineering", "Mathematics", "Physics"} {
 		fmt.Println(department)
 
-		// Gambiarra para ordenar por nome e sobrenome
 		admittedApplicants := departments[department]
-		sort.Slice(admittedApplicants, func(i, j int) bool {
-			if admittedApplicants[i].gpa != admittedApplicants[j].gpa {
-				return admittedApplicants[i].gpa > admittedApplicants[j].gpa
-			}
-			if admittedApplicants[i].firstName != admittedApplicants[j].firstName {
-				return admittedApplicants[i].firstName < admittedApplicants[j].firstName
-			}
-
-			return admittedApplicants[i].lastName < admittedApplicants[j].lastName
-		})
+		sortApplicants(admittedApplicants)
 
 		for _, applicant := range admittedApplicants {
 			fmt.Printf("%s %s %.2f\n", applicant.firstName, applicant.lastName, applicant.gpa)
