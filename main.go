@@ -1,46 +1,98 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
+	"os"
 	"sort"
 )
 
 type Applicant struct {
-	firstName string
-	lastName  string
-	gpa       float64
+	firstName    string
+	lastName     string
+	gpa          float64
+	firstOption  string
+	secondOption string
+	thirdOption  string
 }
 
 func main() {
-	var totalNumberOfApplicants int
-	fmt.Scan(&totalNumberOfApplicants)
+	var maxNumberOfStudentsPerDepartment int
+	// fmt.Print("> ")
+	fmt.Scan(&maxNumberOfStudentsPerDepartment)
 
-	var numberOfApplicantsToBeAccepted int
-	fmt.Scan(&numberOfApplicantsToBeAccepted)
+	applicantsFile, err := os.Open("applicants.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer applicantsFile.Close()
 
+	scanner := bufio.NewScanner(applicantsFile)
 	var applicants []Applicant
-	for i := 0; i < totalNumberOfApplicants; i++ {
+
+	for scanner.Scan() {
 		var applicant Applicant
-
-		fmt.Scan(&applicant.firstName, &applicant.lastName, &applicant.gpa)
-
+		fmt.Sscan(scanner.Text(), &applicant.firstName, &applicant.lastName, &applicant.gpa, &applicant.firstOption, &applicant.secondOption, &applicant.thirdOption)
 		applicants = append(applicants, applicant)
 	}
 
-	sort.Slice(applicants, func(i, j int) bool {
-		if applicants[i].gpa == applicants[j].gpa {
-			if applicants[i].firstName == applicants[j].firstName {
-				return applicants[i].lastName < applicants[j].lastName
-			}
+	departments := map[string][]Applicant{
+		"Biotech":     {},
+		"Chemistry":   {},
+		"Engineering": {},
+		"Mathematics": {},
+		"Physics":     {},
+	}
 
-			return applicants[i].firstName < applicants[j].firstName
+	for _, priorityFunc := range []func(applicant Applicant) string{
+		func(applicant Applicant) string { return applicant.firstOption },
+		func(applicant Applicant) string { return applicant.secondOption },
+		func(applicant Applicant) string { return applicant.thirdOption },
+	} {
+		sort.Slice(applicants, func(i, j int) bool {
+			if applicants[i].gpa != applicants[j].gpa {
+				return applicants[i].gpa > applicants[j].gpa
+			}
+			if applicants[i].firstName != applicants[j].firstName {
+				return applicants[i].firstName < applicants[j].firstName
+			}
+			return applicants[i].lastName < applicants[j].lastName
+		})
+
+		var remainingApplicants []Applicant
+
+		for _, applicant := range applicants {
+			department := priorityFunc(applicant)
+			if len(departments[department]) < maxNumberOfStudentsPerDepartment {
+				departments[department] = append(departments[department], applicant)
+			} else {
+				remainingApplicants = append(remainingApplicants, applicant)
+			}
 		}
 
-		return applicants[i].gpa > applicants[j].gpa
-	})
+		applicants = remainingApplicants
+	}
 
-	fmt.Println("Successful applicants:")
-	for i := 0; i < numberOfApplicantsToBeAccepted; i++ {
-		fmt.Println(applicants[i].firstName, applicants[i].lastName)
+	for _, department := range []string{"Biotech", "Chemistry", "Engineering", "Mathematics", "Physics"} {
+		fmt.Println(department)
+
+		// Gambiarra para ordenar por nome e sobrenome
+		admittedApplicants := departments[department]
+		sort.Slice(admittedApplicants, func(i, j int) bool {
+			if admittedApplicants[i].gpa != admittedApplicants[j].gpa {
+				return admittedApplicants[i].gpa > admittedApplicants[j].gpa
+			}
+			if admittedApplicants[i].firstName != admittedApplicants[j].firstName {
+				return admittedApplicants[i].firstName < admittedApplicants[j].firstName
+			}
+
+			return admittedApplicants[i].lastName < admittedApplicants[j].lastName
+		})
+
+		for _, applicant := range admittedApplicants {
+			fmt.Printf("%s %s %.2f\n", applicant.firstName, applicant.lastName, applicant.gpa)
+		}
+		fmt.Println()
 	}
 }
