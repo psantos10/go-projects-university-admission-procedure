@@ -23,19 +23,6 @@ type Applicant struct {
 	thirdOption   string
 }
 
-func sortApplicantsByDepartment(applicants []Applicant, department string) {
-	sort.Slice(applicants, func(i, j int) bool {
-		scoreI, scoreJ := getScore(applicants[i], department), getScore(applicants[j], department)
-		if scoreI != scoreJ {
-			return scoreI > scoreJ
-		}
-		if applicants[i].firstName != applicants[j].firstName {
-			return applicants[i].firstName < applicants[j].firstName
-		}
-		return applicants[i].lastName < applicants[j].lastName
-	})
-}
-
 func getScore(applicant Applicant, department string) float64 {
 	var score float64
 	switch department {
@@ -52,13 +39,12 @@ func getScore(applicant Applicant, department string) float64 {
 	default:
 		return applicant.admissionExam
 	}
-
 	return math.Max(score, applicant.admissionExam)
 }
 
-func sortApplicantsByPriority(applicants []Applicant, priorityFunc func(Applicant) string) {
+func sortApplicantsByCriteria(applicants []Applicant, criteriaFunc func(Applicant) string) {
 	sort.Slice(applicants, func(i, j int) bool {
-		departmentI, departmentJ := priorityFunc(applicants[i]), priorityFunc(applicants[j])
+		departmentI, departmentJ := criteriaFunc(applicants[i]), criteriaFunc(applicants[j])
 		scoreI, scoreJ := getScore(applicants[i], departmentI), getScore(applicants[j], departmentJ)
 		if scoreI != scoreJ {
 			return scoreI > scoreJ
@@ -71,25 +57,37 @@ func sortApplicantsByPriority(applicants []Applicant, priorityFunc func(Applican
 }
 
 func uniqueApplicants(applicants []Applicant, departments map[string][]Applicant) []Applicant {
+	admitted := make(map[string]bool)
 	filtered := make([]Applicant, 0, len(applicants))
-	for _, applicant := range applicants {
-		found := false
-		for _, dept := range departments {
-			for _, a := range dept {
-				if a.firstName == applicant.firstName && a.lastName == applicant.lastName {
-					found = true
-					break
-				}
-			}
-			if found {
-				break
-			}
+	for _, dept := range departments {
+		for _, a := range dept {
+			key := a.firstName + " " + a.lastName
+			admitted[key] = true
 		}
-		if !found {
+	}
+	for _, applicant := range applicants {
+		key := applicant.firstName + " " + applicant.lastName
+		if _, found := admitted[key]; !found {
 			filtered = append(filtered, applicant)
 		}
 	}
 	return filtered
+}
+
+func createDepartmentFile(department string, applicants []Applicant) {
+	filename := fmt.Sprintf("%s.txt", strings.ToLower(department))
+	file, err := os.Create(filename)
+	if err != nil {
+		log.Fatalf("Failed to create file: %s", err)
+	}
+	defer file.Close()
+
+	for _, applicant := range applicants {
+		_, err := fmt.Fprintf(file, "%s %s %.2f\n", applicant.firstName, applicant.lastName, getScore(applicant, department))
+		if err != nil {
+			log.Fatalf("Failed to write to file: %s", err)
+		}
+	}
 }
 
 func main() {
@@ -119,15 +117,16 @@ func main() {
 		"Physics":     {},
 	}
 
-	for _, priorityFunc := range []func(applicant Applicant) string{
-		func(applicant Applicant) string { return applicant.firstOption },
-		func(applicant Applicant) string { return applicant.secondOption },
-		func(applicant Applicant) string { return applicant.thirdOption },
-	} {
-		sortApplicantsByPriority(applicants, priorityFunc)
+	priorities := []func(applicant Applicant) string{
+		func(a Applicant) string { return a.firstOption },
+		func(a Applicant) string { return a.secondOption },
+		func(a Applicant) string { return a.thirdOption },
+	}
+
+	for _, priorityFunc := range priorities {
+		sortApplicantsByCriteria(applicants, priorityFunc)
 
 		var remainingApplicants []Applicant
-
 		for _, applicant := range applicants {
 			department := priorityFunc(applicant)
 			if len(departments[department]) < maxNumberOfStudentsPerDepartment {
@@ -137,25 +136,11 @@ func main() {
 			}
 		}
 
-		applicants = uniqueApplicants(applicants, departments)
+		applicants = uniqueApplicants(remainingApplicants, departments)
 	}
 
-	for _, department := range []string{"Biotech", "Chemistry", "Engineering", "Mathematics", "Physics"} {
-		admittedApplicants := departments[department]
-		sortApplicantsByDepartment(admittedApplicants, department)
-
-		filename := fmt.Sprintf("%s.txt", strings.ToLower(department))
-		file, err := os.Create(filename)
-		if err != nil {
-			log.Fatalf("Failed to create file: %s", err)
-		}
-
-		for _, applicant := range admittedApplicants {
-			_, err := fmt.Fprintf(file, "%s %s %.2f\n", applicant.firstName, applicant.lastName, getScore(applicant, department))
-			if err != nil {
-				log.Fatalf("Failed to write to file: %s", err)
-			}
-		}
-		file.Close()
+	for department := range departments {
+		sortApplicantsByCriteria(departments[department], func(a Applicant) string { return department })
+		createDepartmentFile(department, departments[department])
 	}
 }
